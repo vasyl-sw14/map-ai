@@ -1,0 +1,18 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - flutter --version
+        - flutter config --enable-web
+        - flutter pub get
+    build:
+      commands:
+        - flutter build web --pwa-strategy=none --release
+  artifacts:
+    baseDirectory: /build/web
+    files:
+      - "**/*"
+  cache:
+    paths:
+      - .dart-tool/**/*
