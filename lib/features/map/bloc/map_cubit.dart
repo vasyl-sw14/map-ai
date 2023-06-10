@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -5,8 +7,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/plugin_api.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:tflite_flutter/tflite_flutter.dart';
 import 'dart:ui' as ui;
+import 'package:http/http.dart';
+import 'package:screenshot/screenshot.dart';
 
 part 'map_state.dart';
 
@@ -20,29 +23,34 @@ class MapCubit extends Cubit<MapState> {
             currentModel: 'ResNet50'));
 
   void zoomIn(MapController controller, LatLng point) {
-    controller.move(point, 18);
-    emit(state.copyWith(currentZoom: 18));
+    controller.move(point, 16.4);
+    emit(state.copyWith(currentZoom: 16.4));
   }
 
   void setZoom(double zoom) {
     emit(state.copyWith(currentZoom: zoom));
   }
 
-  Future<void> addMarker(LatLng coords, GlobalKey key) async {
+  Future<void> addMarker(LatLng coords, ScreenshotController controller) async {
     bool positive = false;
 
-    if (kIsWeb && kDebugMode) {
-      Uint8List? image = await _capturePng(key);
+    Uint8List? image = await _capturePng(controller);
 
-      if (image != null) {
-        final interpreter = await Interpreter.fromAsset('assets/model.tflite');
+    if (image != null) {
+      String base64Image = base64Encode(image);
 
-        final inputImage = image;
-        final output = List.filled(1 * 2, 0).reshape([1, 2]);
+      final response = await post(
+          Uri.parse(
+              'https://u3mn3ctbqf.execute-api.eu-central-1.amazonaws.com/inference'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'img': base64Image}));
 
-        interpreter.run(inputImage, output);
+      if (response.statusCode == 200) {
+        Map<String, dynamic> result = json.decode(json.decode(response.body));
 
-        if (output[0] > 0.8) {
+        print(result);
+
+        if (result['result'] == '1') {
           positive = true;
         }
       }
@@ -53,15 +61,10 @@ class MapCubit extends Cubit<MapState> {
         results: List.of(state.results)..add(positive)));
   }
 
-  Future<Uint8List?> _capturePng(GlobalKey key) async {
-    final RenderRepaintBoundary boundary =
-        key.currentContext?.findRenderObject() as RenderRepaintBoundary;
+  Future<Uint8List?> _capturePng(ScreenshotController controller) async {
+    Uint8List? image = await controller.capture();
 
-    final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
-    final ByteData? byteData =
-        await image.toByteData(format: ui.ImageByteFormat.png);
-    final Uint8List? pngBytes = byteData?.buffer.asUint8List();
-    return pngBytes;
+    return image;
   }
 
   void selectModel(String? model) {

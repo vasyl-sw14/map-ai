@@ -4,7 +4,9 @@ import base64
 
 import torch
 
-from fastai.text import *
+from fastai.vision import *
+from fastai.vision.all import *
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -13,26 +15,38 @@ JSON_CONTENT_TYPE = 'application/json'
 
 def model_fn(model_dir):
     logger.info('model_fn')
-    path = Path(model_dir)
-    learn = load_learner(model_dir, 'fastai_model_resnet50.pkl')
-    return learn
+    logger.info(model_dir)
+    try:
+        learn = load_learner(model_dir + '/fastai_model_resnet50.pkl')
+        
+        return learn
+    except Exception as e:
+        logger.info(e)
+        raise e
 
 
 def predict_fn(input, model):
     logger.info("Calling model")
-    start_time = time.time()
-    img = base64.b64decode(input)
-    result, _, __ = model.predict(img)
-    print("--- Inference time: %s seconds ---" % (time.time() - start_time))
-    return json.dumps({
-        "input": input,
-        "result": result
-    })
+    try:
+        start_time = time.time()
+        img = base64.b64decode(input)
+        result, _, __ = model.predict(img)
+        print("--- Inference time: %s seconds ---" % (time.time() - start_time))
+        return json.dumps({
+            "result": result
+        })
+    except Exception as e:
+        logger.info(e)
+        raise e
 
 def input_fn(request_body, content_type=JSON_CONTENT_TYPE):
     logger.info('Deserializing the input data.')
-    if content_type == JSON_CONTENT_TYPE: return request_body["img"]   
-    raise Exception('Requested unsupported ContentType in content_type: {}'.format(content_type))
+    try:
+        event = json.loads(request_body)
+        if content_type == JSON_CONTENT_TYPE: return event["img"]   
+    except Exception as e:
+        logger.info(e)
+        raise e
     
 def output_fn(prediction, accept=JSON_CONTENT_TYPE):        
     logger.info('Serializing the generated output.')

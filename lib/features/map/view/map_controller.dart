@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'package:map_ai/features/auth/cubit/auth_cubit.dart';
 import 'package:map_ai/features/map/bloc/map_cubit.dart';
+import 'package:screenshot/screenshot.dart';
 
 class MapViewController extends StatefulWidget {
   const MapViewController({super.key});
@@ -18,16 +19,16 @@ class MapViewController extends StatefulWidget {
   State<MapViewController> createState() => _MapViewControllerState();
 }
 
-GlobalKey mapKey = GlobalKey();
-
 class _MapViewControllerState extends State<MapViewController> {
   late MapController mapController;
+  late ScreenshotController controller;
 
   @override
   void initState() {
     super.initState();
 
     mapController = MapController();
+    controller = ScreenshotController();
 
     mapController.mapEventStream.listen((event) {
       context.read<MapCubit>().setZoom(event.zoom);
@@ -57,60 +58,64 @@ class _MapViewControllerState extends State<MapViewController> {
                     child: SizedBox(
                       width: double.maxFinite,
                       height: double.maxFinite,
-                      child: FlutterMap(
-                        key: mapKey,
-                        mapController: mapController,
-                        options: MapOptions(
-                            center: LatLng(49.842957, 24.031111),
-                            zoom: state.currentZoom,
-                            minZoom: 2,
-                            maxZoom: 18.0,
-                            onTap: (tapPosition, point) {
-                              context
-                                  .read<MapCubit>()
-                                  .zoomIn(mapController, point);
-                              context.read<MapCubit>().addMarker(point, mapKey);
-                            },
-                            keepAlive: true),
-                        children: [
-                          TileLayer(
-                              subdomains: const ['a', 'b', 'c'],
-                              urlTemplate:
-                                  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
-                          MarkerLayer(
-                              markers: state.markers
-                                  .map((e) => state.currentZoom > 17
-                                      ? Marker(
-                                          point: e,
-                                          width: min(
-                                              MediaQuery.of(context)
-                                                      .size
-                                                      .width -
-                                                  50,
-                                              500),
-                                          height: min(
-                                              MediaQuery.of(context)
-                                                      .size
-                                                      .width -
-                                                  50,
-                                              500),
-                                          builder: (context) => Container(
-                                              color: state
-                                                  .colorForCoord(e)
-                                                  .withOpacity(0.5)))
-                                      : Marker(
-                                          point: e,
-                                          width: 20,
-                                          height: 20,
-                                          builder: (context) => Container(
-                                                decoration: BoxDecoration(
-                                                    color: state
-                                                        .colorForCoord(e)
-                                                        .withOpacity(0.5),
-                                                    shape: BoxShape.circle),
-                                              )))
-                                  .toList())
-                        ],
+                      child: Screenshot(
+                        controller: controller,
+                        child: FlutterMap(
+                          mapController: mapController,
+                          options: MapOptions(
+                              center: LatLng(49.842957, 24.031111),
+                              zoom: state.currentZoom,
+                              minZoom: 2,
+                              maxZoom: 16.4,
+                              onTap: (tapPosition, point) {
+                                context
+                                    .read<MapCubit>()
+                                    .zoomIn(mapController, point);
+                                context
+                                    .read<MapCubit>()
+                                    .addMarker(point, controller);
+                              },
+                              keepAlive: true),
+                          children: [
+                            TileLayer(
+                                subdomains: const ['a', 'b', 'c'],
+                                urlTemplate:
+                                    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
+                            MarkerLayer(
+                                markers: state.markers
+                                    .map((e) => state.currentZoom > 16.3
+                                        ? Marker(
+                                            point: e,
+                                            width: min(
+                                                MediaQuery.of(context)
+                                                        .size
+                                                        .width -
+                                                    50,
+                                                500),
+                                            height: min(
+                                                MediaQuery.of(context)
+                                                        .size
+                                                        .width -
+                                                    50,
+                                                500),
+                                            builder: (context) => Container(
+                                                color: state
+                                                    .colorForCoord(e)
+                                                    .withOpacity(0.5)))
+                                        : Marker(
+                                            point: e,
+                                            width: 20,
+                                            height: 20,
+                                            builder: (context) => Container(
+                                                  decoration: BoxDecoration(
+                                                      color: state
+                                                          .colorForCoord(e)
+                                                          .withOpacity(0.5),
+                                                      shape: BoxShape.circle),
+                                                )))
+                                    .toList())
+                          ],
+                        ),
                       ),
                     ),
                   )
@@ -126,9 +131,8 @@ class _MapViewControllerState extends State<MapViewController> {
                               onPressed: () {
                                 context.read<MapCubit>().zoomIn(
                                     mapController, mapController.center);
-                                context
-                                    .read<MapCubit>()
-                                    .addMarker(mapController.center, mapKey);
+                                context.read<MapCubit>().addMarker(
+                                    mapController.center, controller);
                               })))),
               Align(
                   alignment: Alignment.topRight,
